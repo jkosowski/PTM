@@ -1,10 +1,4 @@
- /*    Keil project example for HD44780 LCD driver
- *
- *    @author     Tilen Majerle
- *    @email        tilen@majerle.eu
- *    @website    http://stm32f4-discovery.com
- *    @ide        Keil uVision 5
- */
+
 
 #include "defines.h"
 #include "stm32f4xx.h"
