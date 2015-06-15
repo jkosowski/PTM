@@ -5,7 +5,7 @@
  *    @website    http://stm32f4-discovery.com
  *    @ide        Keil uVision 5
  */
-#include "tm_stm32f4_button.h"
+
 #include "defines.h"
 #include "stm32f4xx.h"
 #include "tm_stm32f4_delay.h"
@@ -15,6 +15,11 @@
 
 //#include "stdio.h"
 #include "math.h"
+
+enum pozycja{
+	Czujnik_Lewy,
+	Czujnik_Prawy,
+};
 
 void reverse(char *str, int len)
 {
@@ -86,118 +91,342 @@ void ftoa(float n, char *res, int afterpoint)
     }
 }
 
-void BUTTON1_EventHandler(TM_BUTTON_PressType_t type);
-
 
 int opcja=0;
-int main(void) {
 
+void strzaleczki(int n,enum pozycja gdzie){
+	int l=0;
+
+	if(n < 1)
+		l=8;
+	if(n >= 1 && n < 3)
+		l=7;
+	if(n >= 3 && n < 5)
+		l=6;
+	if(n >= 5 && n < 7)
+		l=5;
+	if(n >= 7 && n < 9)
+		l=4;
+	if(n >= 9 && n < 11)
+		l=3;
+	if(n >= 11 && n < 13)
+		l=2;
+	if(n >= 13 && n< 15)
+		l=1;
+	if(n >= 15)
+		l=0;
+
+
+
+	int i=0;
+	switch(gdzie){
+	case Czujnik_Lewy:
+		for(i=0; i<l;i++){
+			TM_HD44780_Puts(i,1,">");
+			//TM_HD44780_Puts(15-i,1,"<");
+		}
+		for(i=l; i<8;i++){
+			TM_HD44780_Puts(i,1," ");
+			//TM_HD44780_Puts(15-i,1," ");
+		}
+		break;
+	case Czujnik_Prawy:
+		for(i=0; i<l;i++){
+			//TM_HD44780_Puts(i,1,">");
+			TM_HD44780_Puts(15-i,1,"<");
+		}
+		for(i=l; i<8;i++){
+			//TM_HD44780_Puts(i,1," ");
+			TM_HD44780_Puts(15-i,1," ");
+		}
+		break;
+	}
+
+
+}
+TM_HCSR04_t HCSR2;
+TM_HCSR04_t HCSR1;
+void initButton() {
+	GPIO_InitTypeDef GPIO_InitStructure;
+
+	RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOA, ENABLE);
+
+	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IN;
+	GPIO_InitStructure.GPIO_PuPd = GPIO_PuPd_NOPULL ;
+	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_0;
+	GPIO_Init(GPIOA, &GPIO_InitStructure) ;
+}
+int main(void) {
+	initButton();
     SystemInit();
 
     //Initialize LCD 20 cols x 4 rows
     TM_HD44780_Init(16, 2);
     TM_HD44780_Clear();
 
-    TM_BUTTON_Init(GPIOA, GPIO_Pin_0, 1, BUTTON1_EventHandler);
 
 
     //TM_GPIO_Init(GPIOA,GPIO_PIN_0, GPIO_Mode_IN, GPIO_OType_PP,GPIO_PuPd_DOWN, GPIO_Speed_50MHz);
     TM_HD44780_Puts(5,0,"WITAM!");
-    Delayms(1000);
+    Delayms(700);
     TM_HD44780_Clear();
 
-    int czekaj = 1500;
+    int czekaj = 700;
 
-	TM_HCSR04_t HCSR2;
 
-	    char res[20];
 	    float n = 0;
 	    int i =0;
+	TM_HCSR04_Init(&HCSR2,GPIOC,GPIO_PIN_14,GPIOC,GPIO_PIN_15);
+	TM_HCSR04_Init(&HCSR1,GPIOA,GPIO_PIN_14,GPIOA,GPIO_PIN_15);
 
-    while (1) {/*
+	while (1) {
+////////////////////////////////////////////////////////////////  PIERWSZA OPCJA
     	opcja = 1;
     	TM_HD44780_Puts(0,0, "1. Zmierz odleglosc.");
     	while(czekaj){
-    		TM_BUTTON_Update();
+    		if(GPIO_ReadInputDataBit(GPIOA, GPIO_Pin_0) == 1){
+    		    			distance(10,1);
+    		    	}
     		czekaj--;
     		Delayms(1);
     	}
+    	GPIO_ReadOutputDataBit(GPIOA,GPIO_PIN_0);
     	TM_HD44780_Clear();
-    	TM_BUTTON_Update();
-    	czekaj = 1500;
+
+//////////////////////////////////////////////////		DRUGA OPCJA
+    	czekaj = 700;
     	opcja = 2;
     	TM_HD44780_Puts(0,0, "2. Zlicz.");
     	while(czekaj){
-    	    TM_BUTTON_Update();
+    		if(GPIO_ReadInputDataBit(GPIOA, GPIO_Pin_0) == 1){
+    		    			counter(150);
+    		    	}
     	    czekaj--;
     	    Delayms(1);
     	}
-    	czekaj = 1500;
+    	GPIO_ReadOutputDataBit(GPIOA,GPIO_PIN_0);
+    	czekaj = 700;
     	TM_HD44780_Clear();
-    	TM_BUTTON_Update();
-*/
-    	//distance(5,1);
+//////////////////////////////////////////////////     TRZECIA OPCJA
+    	czekaj = 700;
+    	opcja = 3;
+    	TM_HD44780_Puts(0,0, "3. Policz kubature.");
+    	while(czekaj){
+    		if(GPIO_ReadInputDataBit(GPIOA, GPIO_Pin_0) == 1){
+    					kubatura();
+    		    	}
+    	    czekaj--;
+    	    Delayms(1);
+    	}
+    	GPIO_ReadOutputDataBit(GPIOA,GPIO_PIN_0);
+    	czekaj = 700;
+    	TM_HD44780_Clear();
+	}
+}
+
+void kubatura(){
+	float n=0,n2=0,n3=0;
+	char res[20];
+	int czekaj=1000;
+	int i=0;
+	int czy=0;
+	TM_HD44780_Clear();
+	TM_HD44780_Puts(0,0,"Kubatura.");
+	Delayms(500);
+
+	TM_HD44780_Cmd();
+	TM_HD44780_Puts(0,0,"Przyloz i wcisnij:");
+	Delayms(700);
+
+	TM_HD44780_Clear();
+	TM_HD44780_Puts(0,0,"X=");
+
+	while(!czy){
+		for(i=0,n=0;i<10;i++){
+			n += TM_HCSR04_Read(&HCSR2);
+			Delayms(2);
+			}
+		n = (n/10);
+
+		ftoa(n,res,0);
+		TM_HD44780_Puts(2,0,res);
+
+		//TM_HD44780_Puts(14,1,"G");
+		while(czekaj){
+
+			//TM_HD44780_Puts(14,1,"C");
+		    		if(GPIO_ReadInputDataBit(GPIOA, GPIO_Pin_0) == 1){
+		    			czy= 1;
+		    			break;
+		    		    	}
+		    	    czekaj--;
+		    	    Delayms(1);
+		    	}
+		czekaj=1000;
+	}
+
+	czy=0;
+	czekaj=1000;
+
+	TM_HD44780_Puts(5,0,"Y=");
+	while(!czy){
+		for(i=0,n2=0;i<10;i++){
+			n2 += TM_HCSR04_Read(&HCSR2);
+			Delayms(10);
+			}
+		n2 = (n2/10);
+
+		ftoa(n2,res,0);
+		TM_HD44780_Puts(7,0,res);
+
+		while(czekaj){
+
+			//TM_HD44780_Puts(14,1,"C");
+		    		if(GPIO_ReadInputDataBit(GPIOA, GPIO_Pin_0) == 1){
+		    			czy= 1;
+		    			break;
+		    		    	}
+		    	    czekaj--;
+		    	    Delayms(1);
+		    	}
+		czekaj=1000;
+
+	}
+	czy=0;
+	czekaj=1000;
+
+	ftoa((n*n2)/10000,res,2);
+	TM_HD44780_Puts(10,0,"P=");
+	TM_HD44780_Puts(12,0,res);
+
+	TM_HD44780_Puts(0,1,"Z=");
+	while(!czy){
+		for(i=0,n3=0;i<10;i++){
+			n3 += TM_HCSR04_Read(&HCSR2);
+			Delayms(10);
+			}
+		n3 = (n3/10);
+
+		ftoa(n3,res,0);
+		TM_HD44780_Puts(2,1,res);
 
 
-    	    TM_HCSR04_Init(&HCSR2,GPIOC,GPIO_PIN_15,GPIOC,GPIO_PIN_14);
+		while(czekaj){
 
-    	    n = TM_HCSR04_Read(&HCSR2);
-    	    	ftoa(n, res, 2);
+			//TM_HD44780_Puts(14,1,"C");
+		    		if(GPIO_ReadInputDataBit(GPIOA, GPIO_Pin_0) == 1){
+		    			czy= 1;
+		    			break;
+		    		    	}
+		    	    czekaj--;
+		    	    Delayms(1);
+		    	}
+		czekaj=1000;
 
-    	    	TM_HD44780_Clear();
-    	    	TM_HD44780_Puts(0,0,res);
+	}
+	czy=0;
+	czekaj=1000;
+
+	ftoa((n*n2*n3)/1000000,res,2);
+	TM_HD44780_Puts(7,1,"V=");
+	TM_HD44780_Puts(9,1,res);
+
+	Delayms(200);
+	while(1){
+	if(GPIO_ReadInputDataBit(GPIOA, GPIO_Pin_0) == 1){
+			return;
+		 }
+	}
+
+}
+void counter(int distance){
+	TM_HD44780_Clear();
+	float n=0;
+    TM_HD44780_Puts(5,0,"counter!");
+    Delayms(500);
+    int licznik=0;
+    float npoprzednie = distance;
+    int i=0;
+    char res[20];
+    TM_HD44780_Clear();
+
+	for(i=0,n=0;i<10;i++){
+		n += TM_HCSR04_Read(&HCSR2);
+		Delayms(2);
+   	}
+    n=n/10;
+
+	TM_HD44780_Puts(0,0,"Licznik:");
+	TM_HD44780_Puts(0,1,"0");
+
+    if(!(n>distance))
+    	distance = n;
+
+    while(1){
+
+    	for(i=0,n=0;i<20;i++){
+    		n += TM_HCSR04_Read(&HCSR2);
+    		Delayms(2);
+       	}
+    	n = n/20;
 
 
-    	    	Delayms(500);
+    	if (!(n>distance)) {
+    		/*if(abs(n-npoprzednie) > 10){
+    			licznik++;
+    			ftoa(licznik,res,0);
+    			//npoprzednie= n;
+    			TM_HD44780_Puts(0,0,"Licznik:");
+    			TM_HD44780_Puts(0,1,(res));
+    		}*/
+    		if(abs(n - npoprzednie) > 10){
+				licznik++;
+				npoprzednie = n;
+				ftoa(licznik, res, 0);
+				TM_HD44780_Puts(0,0,"Licznik:");
+				TM_HD44780_Puts(0,1,res);
+    		}
+    		else{}
+		}
+    	else{
+    		//if(!(abs(n - npoprzednie) < 5))
+    			//npoprzednie = distance;
+    		 npoprzednie = distance;
+    	}
+    	Delayms(80);
 
     }
-}
 
-void BUTTON1_EventHandler(TM_BUTTON_PressType_t type) {
 
-		if (type == TM_BUTTON_PressType_OnPressed) {
 
-		} else if (type == TM_BUTTON_PressType_Normal) {
-			 if(opcja =1)
-				 distance(10,1);
-			 else if(opcja=2)
-				 counter();
-		} else {
-			 main();
-		}
-}
-void counter(){
-
-    TM_HD44780_Puts(5,0,"counter!");
 }
 void distance(int samples, int precision)
 {
-	//while(1){
-	//TM_BUTTON_Update();
-	//TM_HCSR04_t HCSR;
-	TM_HCSR04_t HCSR2;
+	enum pozycja poz = Czujnik_Lewy;
+	enum pozycja poz2 = Czujnik_Prawy;
+	float n = 0, n2=0,i=0;
 
-	    char res[20];
-	    float n = 0;
-	    int i =0;
-	    TM_HCSR04_Init(&HCSR2,GPIOC,GPIO_PIN_15,GPIOC,GPIO_PIN_14);
-while(1){
-	n=0;
-for( i= 0; i<samples; i++)
-	{
-
-		n = n + TM_HCSR04_Read(&HCSR2);
+	char res[20], res2[20];
+	while(1){
+	for(i=0,n=0,n2=0;i<samples;i++){
+		n += TM_HCSR04_Read(&HCSR2);
+		Delayms(30);
+		n2 += TM_HCSR04_Read(&HCSR1);
+		Delayms(30);
 	}
 
-	n = n / (float)samples;
+	n = n/samples;
+	n2 = n2/samples;
 
+	ftoa(n2, res2, precision);
 	ftoa(n, res, precision);
 
 	TM_HD44780_Clear();
-	TM_HD44780_Puts(0,0,res);
+	TM_HD44780_Puts(2,0,res);
+	TM_HD44780_Puts(10,0,res2);
 
-
-	Delayms(500);
-}
-//	}
+	strzaleczki((int)(n/10),poz);
+	strzaleczki((int)(n2/10),poz2);
+	Delayms(200);
+	}
 }
